@@ -1,0 +1,14 @@
+﻿services:
+  mongodb:
+    image: mongo:8
+    container_name: lovetechcyber-forex-mongodb
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: lovetechcyber_ai_forex
+    ports:
+      - "127.0.0.1:27018:27017"
+    volumes:
+      - forex_mongodb_data:/data/db
+
+volumes:
+  forex_mongodb_data:

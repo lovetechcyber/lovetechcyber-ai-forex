@@ -1,0 +1,407 @@
+
+"""
+Fair Value Gap (FVG) Detection Engine.
+
+Detects three-candle bullish and bearish imbalances and tracks
+their mitigation and invalidation using subsequent candles.
+
+Important:
+- Input candles must be closed candles.
+- FVG creation requires three consecutive candles.
+- The third candle confirms the FVG.
+- Mitigation begins only on candles after creation.
+- Historical detection does not use future candles to create gaps.
+"""
+
+from typing import Any
+
+from analysis.market_structure import (
+    TIMEFRAME_SECONDS,
+    MarketStructureError,
+    _prepare_candles,
+    _format_timestamp,
+)
+
+
+def detect_fair_value_gaps(
+    candles: list[dict[str, Any]],
+    timeframe: str,
+) -> dict[str, Any]:
+    """
+    Detect bullish and bearish Fair Value Gaps.
+
+    Bullish FVG:
+        Candle 3 low > Candle 1 high.
+
+        Lower boundary = Candle 1 high
+        Upper boundary = Candle 3 low
+
+    Bearish FVG:
+        Candle 3 high < Candle 1 low.
+
+        Lower boundary = Candle 3 high
+        Upper boundary = Candle 1 low
+
+    Mitigation:
+        Bullish: price moves downward into the gap.
+        Bearish: price moves upward into the gap.
+
+    Invalidation:
+        Bullish: a subsequent candle closes below the lower boundary.
+        Bearish: a subsequent candle closes above the upper boundary.
+
+    Only candles after the FVG creation candle can mitigate or
+    invalidate that FVG.
+    """
+
+    if timeframe not in TIMEFRAME_SECONDS:
+        raise MarketStructureError(
+            f"Unsupported timeframe: {timeframe}"
+        )
+
+    prepared = _prepare_candles(candles)
+
+    if len(prepared) < 3:
+        return {
+            "status": "insufficient_data",
+            "timeframe": timeframe,
+            "candles_received": len(prepared),
+            "total_gaps": 0,
+            "bullish_gaps": 0,
+            "bearish_gaps": 0,
+            "unmitigated_gaps": 0,
+            "partially_mitigated_gaps": 0,
+            "fully_mitigated_gaps": 0,
+            "invalidated_gaps": 0,
+            "gaps": [],
+            "message": (
+                "At least three closed candles are required "
+                "to detect a Fair Value Gap."
+            ),
+        }
+
+    gaps: list[dict[str, Any]] = []
+
+    # Process candles chronologically.
+    for current_index, candle in enumerate(prepared):
+
+        # --------------------------------------------------
+        # 1. UPDATE EXISTING GAPS
+        # --------------------------------------------------
+        #
+        # Only gaps created before the current candle can
+        # be mitigated or invalidated.
+        #
+
+        for gap in gaps:
+
+            # A gap cannot be mitigated on its creation candle.
+            if gap["creation_index"] >= current_index:
+                continue
+
+            # Stop tracking after invalidation.
+            if gap["is_invalidated"]:
+                continue
+
+            lower = gap["lower_boundary"]
+            upper = gap["upper_boundary"]
+            gap_size = gap["gap_size"]
+
+            if gap["type"] == "bullish_fvg":
+
+                # Price enters a bullish FVG from above.
+                if candle["low"] < upper:
+
+                    penetration = max(
+                        0.0,
+                        min(gap_size, upper - candle["low"]),
+                    )
+
+                    current_percent = (
+                        penetration / gap_size
+                    ) * 100
+
+                    # Preserve the first touch, including full fills.
+                    if gap["first_mitigation_timestamp"] is None:
+                        gap["first_mitigation_timestamp"] = (
+                            candle["timestamp"]
+                        )
+                        gap["first_mitigation_index"] = current_index
+
+                    # Historical maximum penetration must never decrease.
+                    gap["mitigation_percent"] = round(
+                        max(
+                            gap["mitigation_percent"],
+                            current_percent,
+                        ),
+                        4,
+                    )
+
+                    if candle["low"] <= lower:
+
+                        gap["status"] = "fully_mitigated"
+                        gap["mitigation_percent"] = 100.0
+
+                        if gap["mitigated_timestamp"] is None:
+                            gap["mitigated_timestamp"] = (
+                                candle["timestamp"]
+                            )
+                            gap["mitigated_time"] = (
+                                _format_timestamp(candle["timestamp"])
+                            )
+                            gap["mitigated_index"] = current_index
+
+                    elif gap["status"] != "fully_mitigated":
+
+                        gap["status"] = "partially_mitigated"
+
+                # Bullish invalidation: close below lower boundary.
+                if candle["close"] < lower:
+
+                    gap["is_invalidated"] = True
+                    gap["invalidation_timestamp"] = candle["timestamp"]
+                    gap["invalidation_time"] = _format_timestamp(
+                        candle["timestamp"]
+                    )
+                    gap["invalidation_index"] = current_index
+
+            elif gap["type"] == "bearish_fvg":
+
+                # Price enters a bearish FVG from below.
+                if candle["high"] > lower:
+
+                    penetration = max(
+                        0.0,
+                        min(gap_size, candle["high"] - lower),
+                    )
+
+                    current_percent = (
+                        penetration / gap_size
+                    ) * 100
+
+                    # Preserve the first touch, including full fills.
+                    if gap["first_mitigation_timestamp"] is None:
+                        gap["first_mitigation_timestamp"] = (
+                            candle["timestamp"]
+                        )
+                        gap["first_mitigation_index"] = current_index
+
+                    # Historical maximum penetration must never decrease.
+                    gap["mitigation_percent"] = round(
+                        max(
+                            gap["mitigation_percent"],
+                            current_percent,
+                        ),
+                        4,
+                    )
+
+                    if candle["high"] >= upper:
+
+                        gap["status"] = "fully_mitigated"
+                        gap["mitigation_percent"] = 100.0
+
+                        if gap["mitigated_timestamp"] is None:
+                            gap["mitigated_timestamp"] = (
+                                candle["timestamp"]
+                            )
+                            gap["mitigated_time"] = (
+                                _format_timestamp(candle["timestamp"])
+                            )
+                            gap["mitigated_index"] = current_index
+
+                    elif gap["status"] != "fully_mitigated":
+
+                        gap["status"] = "partially_mitigated"
+
+                # Bearish invalidation: close above upper boundary.
+                if candle["close"] > upper:
+
+                    gap["is_invalidated"] = True
+                    gap["invalidation_timestamp"] = candle["timestamp"]
+                    gap["invalidation_time"] = _format_timestamp(
+                        candle["timestamp"]
+                    )
+                    gap["invalidation_index"] = current_index
+
+
+        # --------------------------------------------------
+        # 2. DETECT A NEW THREE-CANDLE FVG
+        # --------------------------------------------------
+
+        if current_index < 2:
+            continue
+
+        first = prepared[current_index - 2]
+        middle = prepared[current_index - 1]
+        third = candle
+
+        first_high = first["high"]
+        first_low = first["low"]
+
+        third_high = third["high"]
+        third_low = third["low"]
+
+        fvg_type = None
+        lower_boundary = None
+        upper_boundary = None
+
+        # Bullish imbalance.
+        if third_low > first_high:
+
+            fvg_type = "bullish_fvg"
+            lower_boundary = first_high
+            upper_boundary = third_low
+
+        # Bearish imbalance.
+        elif third_high < first_low:
+
+            fvg_type = "bearish_fvg"
+            lower_boundary = third_high
+            upper_boundary = first_low
+
+        if fvg_type is None:
+            continue
+
+        gap_size = upper_boundary - lower_boundary
+
+        if gap_size <= 0:
+            continue
+
+        midpoint = (
+            lower_boundary + upper_boundary
+        ) / 2
+
+        gap_size_percent = (
+            gap_size / midpoint
+        ) * 100 if midpoint > 0 else 0.0
+
+        gap = {
+            "id": (
+                f"{timeframe}:"
+                f"{third['timestamp']}:"
+                f"{fvg_type}"
+            ),
+            "type": fvg_type,
+            "timeframe": timeframe,
+
+            "lower_boundary": lower_boundary,
+            "upper_boundary": upper_boundary,
+            "midpoint": midpoint,
+
+            "gap_size": gap_size,
+            "gap_size_percent": round(
+                gap_size_percent,
+                6,
+            ),
+
+            "status": "unmitigated",
+            "mitigation_percent": 0.0,
+
+            "is_invalidated": False,
+
+            "creation_index": current_index,
+            "creation_timestamp": third["timestamp"],
+            "creation_time": _format_timestamp(
+                third["timestamp"]
+            ),
+
+            "first_candle_index": current_index - 2,
+            "first_candle_timestamp": first["timestamp"],
+
+            "middle_candle_index": current_index - 1,
+            "middle_candle_timestamp": middle["timestamp"],
+
+            "third_candle_index": current_index,
+            "third_candle_timestamp": third["timestamp"],
+
+            "first_mitigation_timestamp": None,
+            "first_mitigation_index": None,
+
+            "mitigated_timestamp": None,
+            "mitigated_time": None,
+            "mitigated_index": None,
+
+            "invalidation_timestamp": None,
+            "invalidation_time": None,
+            "invalidation_index": None,
+        }
+
+        gaps.append(gap)
+
+    # ------------------------------------------------------
+    # 3. SUMMARY COUNTS
+    # ------------------------------------------------------
+
+    bullish_count = sum(
+        gap["type"] == "bullish_fvg"
+        for gap in gaps
+    )
+
+    bearish_count = sum(
+        gap["type"] == "bearish_fvg"
+        for gap in gaps
+    )
+
+    unmitigated_count = sum(
+        gap["status"] == "unmitigated"
+        for gap in gaps
+    )
+
+    partially_mitigated_count = sum(
+        gap["status"] == "partially_mitigated"
+        for gap in gaps
+    )
+
+    fully_mitigated_count = sum(
+        gap["status"] == "fully_mitigated"
+        for gap in gaps
+    )
+
+    invalidated_count = sum(
+        gap["is_invalidated"]
+        for gap in gaps
+    )
+
+    return {
+        "status": "completed",
+        "timeframe": timeframe,
+        "candles_received": len(prepared),
+
+        "total_gaps": len(gaps),
+        "bullish_gaps": bullish_count,
+        "bearish_gaps": bearish_count,
+
+        "unmitigated_gaps": unmitigated_count,
+        "partially_mitigated_gaps": (
+            partially_mitigated_count
+        ),
+        "fully_mitigated_gaps": fully_mitigated_count,
+        "invalidated_gaps": invalidated_count,
+
+        "gaps": gaps,
+
+        "method": "three_candle_fair_value_gap",
+
+        "rules": {
+            "bullish_fvg": (
+                "Third candle low is above first candle high."
+            ),
+            "bearish_fvg": (
+                "Third candle high is below first candle low."
+            ),
+            "creation_confirmation": (
+                "The third closed candle confirms the FVG."
+            ),
+            "mitigation": (
+                "Only subsequent candles can mitigate an FVG."
+            ),
+            "full_mitigation": (
+                "Price reaches or passes the opposite boundary."
+            ),
+            "invalidation": (
+                "A subsequent candle closes beyond the "
+                "opposite boundary."
+            ),
+            "lookahead_protection": True,
+        },
+    }
