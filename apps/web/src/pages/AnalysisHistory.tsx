@@ -25,11 +25,7 @@ import {
   type AnalysisHistoryItem,
 } from "../service/api";
 
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-type Bias = "bullish" | "bearish" | "neutral" | "uncertain";
-
 const timeframeOptions = ["M5", "M15", "M30", "H1", "H4", "D1"];
-
 function formatDate(value: string) {
   const date = new Date(value);
 
