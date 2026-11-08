@@ -1,4 +1,3 @@
-
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
@@ -6,6 +5,7 @@ import {
   BarChart3,
   Bell,
   CircleHelp,
+  History,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -61,11 +61,7 @@ const TIMEFRAMES = ["M5", "M15", "M30", "H1", "H4", "D1"];
 const REFRESH_INTERVAL = 60_000;
 
 function asRecord(value: unknown): MarketRecord | null {
-  if (
-    typeof value === "object" &&
-    value !== null &&
-    !Array.isArray(value)
-  ) {
+  if (typeof value === "object" && value !== null && !Array.isArray(value)) {
     return value as MarketRecord;
   }
 
@@ -77,8 +73,7 @@ function getNumber(value: unknown): number | undefined {
     return undefined;
   }
 
-  const number =
-    typeof value === "number" ? value : Number(value);
+  const number = typeof value === "number" ? value : Number(value);
 
   return Number.isFinite(number) ? number : undefined;
 }
@@ -117,23 +112,15 @@ function getMarketRows(response: unknown): MarketRecord[] {
 function normalizeCandles(rows: MarketRecord[]): Candle[] {
   return rows
     .map((row, index): Candle | null => {
-      const close = getNumber(
-        row.close ?? row.Close ?? row.price,
-      );
+      const close = getNumber(row.close ?? row.Close ?? row.price);
 
       if (close === undefined) return null;
 
       const rawTime =
-        row.time ??
-        row.timestamp ??
-        row.date ??
-        row.datetime ??
-        row.open_time;
+        row.time ?? row.timestamp ?? row.date ?? row.datetime ?? row.open_time;
 
       return {
-        time: rawTime
-          ? String(rawTime).slice(0, 16)
-          : `Candle ${index + 1}`,
+        time: rawTime ? String(rawTime).slice(0, 16) : `Candle ${index + 1}`,
         close,
         open: getNumber(row.open ?? row.Open),
         high: getNumber(row.high ?? row.High),
@@ -170,11 +157,7 @@ export default function Dashboard() {
     setError("");
 
     try {
-      const response = await marketAPI.latest(
-        symbol,
-        timeframe,
-        100,
-      );
+      const response = await marketAPI.latest(symbol, timeframe, 100);
 
       const rows = getMarketRows(response);
       const normalized = normalizeCandles(rows);
@@ -224,14 +207,10 @@ export default function Dashboard() {
   const previous = candles[candles.length - 2];
 
   const priceChange =
-    latest && previous
-      ? latest.close - previous.close
-      : undefined;
+    latest && previous ? latest.close - previous.close : undefined;
 
   const changePercent =
-    priceChange !== undefined &&
-    previous &&
-    previous.close !== 0
+    priceChange !== undefined && previous && previous.close !== 0
       ? (priceChange / previous.close) * 100
       : undefined;
 
@@ -255,7 +234,6 @@ export default function Dashboard() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 dark:bg-[#080f1c] dark:text-slate-100">
       <div className="flex min-h-screen">
-
         {/* Mobile sidebar overlay */}
         {mobileMenuOpen && (
           <button
@@ -269,9 +247,7 @@ export default function Dashboard() {
         {/* Sidebar */}
         <aside
           className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-slate-200 bg-white p-5 transition-transform duration-200 dark:border-slate-800 dark:bg-[#0d1728] lg:static lg:z-auto lg:translate-x-0 ${
-            mobileMenuOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
+            mobileMenuOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
           <div className="mb-10 flex items-center justify-between">
@@ -282,9 +258,7 @@ export default function Dashboard() {
 
               <div>
                 <p className="font-bold">LovetechCyber</p>
-                <p className="text-xs text-slate-500">
-                  AI Forex Analyst
-                </p>
+                <p className="text-xs text-slate-500">AI Forex Analyst</p>
               </div>
             </div>
 
@@ -323,6 +297,17 @@ export default function Dashboard() {
             />
 
             <NavItem
+              icon={<Activity size={18} />}
+              label="Unified Analysis"
+              onClick={() => handleNavigation("/unified-analysis")}
+            />
+            <NavItem
+              icon={<History size={18} />}
+              label="AI Analysis History"
+              onClick={() => handleNavigation("/analysis-history")}
+            />
+
+            <NavItem
               icon={<TrendingUp size={18} />}
               label="AI Analyst"
               onClick={() => handleNavigation("/ai-analyst")}
@@ -336,11 +321,7 @@ export default function Dashboard() {
           </div>
 
           <nav className="space-y-2">
-            <NavItem
-              icon={<Settings size={18} />}
-              label="Settings"
-              disabled
-            />
+            <NavItem icon={<Settings size={18} />} label="Settings" disabled />
 
             <NavItem
               icon={<CircleHelp size={18} />}
@@ -357,8 +338,8 @@ export default function Dashboard() {
               </div>
 
               <p className="mt-1 text-xs leading-5 text-slate-600 dark:text-slate-400">
-                Insights only. No automatic trade execution.
-                All AI recommendations require human review.
+                Insights only. No automatic trade execution. All AI
+                recommendations require human review.
               </p>
             </div>
 
@@ -375,15 +356,12 @@ export default function Dashboard() {
 
         {/* Main workspace */}
         <main className="min-w-0 flex-1">
-
           {/* Header */}
           <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-slate-200 bg-white/90 px-4 backdrop-blur dark:border-slate-800 dark:bg-[#0d1728]/90 md:px-8">
             <div className="flex items-center gap-3">
               <button
                 type="button"
-                onClick={() =>
-                  setMobileMenuOpen((previous) => !previous)
-                }
+                onClick={() => setMobileMenuOpen((previous) => !previous)}
                 className="rounded-lg p-2 hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden"
                 aria-label="Toggle navigation"
               >
@@ -391,9 +369,7 @@ export default function Dashboard() {
               </button>
 
               <div>
-                <h1 className="font-semibold">
-                  Market Dashboard
-                </h1>
+                <h1 className="font-semibold">Market Dashboard</h1>
 
                 <p className="hidden text-xs text-slate-500 sm:block">
                   Forex market intelligence workspace
@@ -409,11 +385,7 @@ export default function Dashboard() {
                 aria-label="Toggle theme"
                 title="Toggle theme"
               >
-                {theme === "dark" ? (
-                  <Sun size={19} />
-                ) : (
-                  <Moon size={19} />
-                )}
+                {theme === "dark" ? <Sun size={19} /> : <Moon size={19} />}
               </button>
 
               <button
@@ -430,21 +402,16 @@ export default function Dashboard() {
                   {user?.email ?? "Analyst"}
                 </p>
 
-                <p className="text-xs text-slate-500">
-                  Analyst workspace
-                </p>
+                <p className="text-xs text-slate-500">Analyst workspace</p>
               </div>
             </div>
           </header>
 
           <div className="space-y-6 p-4 md:p-8">
-
             {/* Page introduction */}
             <section className="flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
               <div>
-                <h2 className="text-2xl font-bold">
-                  Market Overview
-                </h2>
+                <h2 className="text-2xl font-bold">Market Overview</h2>
 
                 <p className="mt-1 text-sm text-slate-500">
                   Monitor market data and prepare your next analysis.
@@ -477,11 +444,7 @@ export default function Dashboard() {
               <StatCard
                 label="Latest price"
                 value={formatPrice(latest?.close)}
-                detail={
-                  latest
-                    ? "Latest received candle"
-                    : "Waiting for data"
-                }
+                detail={latest ? "Latest received candle" : "Waiting for data"}
                 icon={<TrendingUp size={19} />}
               />
 
@@ -495,9 +458,7 @@ export default function Dashboard() {
                 detail="Compared with previous candle"
                 icon={<BarChart3 size={19} />}
                 positive={
-                  changePercent === undefined
-                    ? undefined
-                    : changePercent >= 0
+                  changePercent === undefined ? undefined : changePercent >= 0
                 }
               />
 
@@ -505,31 +466,20 @@ export default function Dashboard() {
                 label="Market feed"
                 value={connected ? "Data available" : "No data"}
                 detail={
-                  connected
-                    ? "Market candles received"
-                    : "Waiting for MT5 data"
+                  connected ? "Market candles received" : "Waiting for MT5 data"
                 }
-                icon={
-                  connected ? (
-                    <Wifi size={19} />
-                  ) : (
-                    <WifiOff size={19} />
-                  )
-                }
+                icon={connected ? <Wifi size={19} /> : <WifiOff size={19} />}
                 positive={connected}
               />
             </section>
 
             {/* Chart and instrument information */}
             <section className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_300px]">
-
               {/* Market chart */}
               <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 dark:border-slate-800 dark:bg-[#0d1728] md:p-6">
                 <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
                   <div>
-                    <h3 className="text-lg font-semibold">
-                      Market chart
-                    </h3>
+                    <h3 className="text-lg font-semibold">Market chart</h3>
 
                     <p className="text-xs text-slate-500">
                       Closing prices from received market candles
@@ -540,9 +490,7 @@ export default function Dashboard() {
                     <select
                       aria-label="Select currency pair"
                       value={symbol}
-                      onChange={(event) =>
-                        setSymbol(event.target.value)
-                      }
+                      onChange={(event) => setSymbol(event.target.value)}
                       className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
                     >
                       {SYMBOLS.map((item) => (
@@ -555,9 +503,7 @@ export default function Dashboard() {
                     <select
                       aria-label="Select timeframe"
                       value={timeframe}
-                      onChange={(event) =>
-                        setTimeframe(event.target.value)
-                      }
+                      onChange={(event) => setTimeframe(event.target.value)}
                       className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 dark:border-slate-700 dark:bg-slate-900"
                     >
                       {TIMEFRAMES.map((item) => (
@@ -571,18 +517,12 @@ export default function Dashboard() {
 
                 {loading ? (
                   <div className="flex h-72 items-center justify-center text-sm text-slate-500">
-                    <RefreshCw
-                      className="mr-2 animate-spin"
-                      size={18}
-                    />
+                    <RefreshCw className="mr-2 animate-spin" size={18} />
                     Loading market data...
                   </div>
                 ) : candles.length > 1 ? (
                   <div className="h-72 w-full">
-                    <ResponsiveContainer
-                      width="100%"
-                      height="100%"
-                    >
+                    <ResponsiveContainer width="100%" height="100%">
                       <LineChart data={candles}>
                         <CartesianGrid
                           strokeDasharray="3 3"
@@ -609,9 +549,7 @@ export default function Dashboard() {
                         <Tooltip
                           contentStyle={{
                             background:
-                              theme === "dark"
-                                ? "#101d32"
-                                : "#ffffff",
+                              theme === "dark" ? "#101d32" : "#ffffff",
                             border: "1px solid #334155",
                             borderRadius: 10,
                           }}
@@ -635,14 +573,9 @@ export default function Dashboard() {
                   </div>
                 ) : (
                   <div className="flex h-72 flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 px-5 text-center dark:border-slate-700">
-                    <Activity
-                      size={30}
-                      className="mb-3 text-slate-400"
-                    />
+                    <Activity size={30} className="mb-3 text-slate-400" />
 
-                    <p className="font-medium">
-                      Market data not available
-                    </p>
+                    <p className="font-medium">Market data not available</p>
 
                     <p className="mt-2 max-w-sm text-sm text-slate-500">
                       {error ||
@@ -661,9 +594,7 @@ export default function Dashboard() {
                 )}
 
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-                  <span>
-                    {candles.length} candles loaded
-                  </span>
+                  <span>{candles.length} candles loaded</span>
 
                   <span>
                     {lastUpdated
@@ -675,11 +606,8 @@ export default function Dashboard() {
 
               {/* Instrument details */}
               <div className="space-y-4">
-
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#0d1728]">
-                  <h3 className="font-semibold">
-                    Market connection
-                  </h3>
+                  <h3 className="font-semibold">Market connection</h3>
 
                   <div className="mt-4 flex items-center gap-3">
                     <span
@@ -689,11 +617,7 @@ export default function Dashboard() {
                           : "bg-amber-100 text-amber-700 dark:bg-amber-950 dark:text-amber-400"
                       }`}
                     >
-                      {connected ? (
-                        <Wifi size={20} />
-                      ) : (
-                        <WifiOff size={20} />
-                      )}
+                      {connected ? <Wifi size={20} /> : <WifiOff size={20} />}
                     </span>
 
                     <div>
@@ -713,13 +637,9 @@ export default function Dashboard() {
                 </div>
 
                 <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#0d1728]">
-                  <h3 className="font-semibold">
-                    Selected instrument
-                  </h3>
+                  <h3 className="font-semibold">Selected instrument</h3>
 
-                  <p className="mt-4 text-2xl font-bold">
-                    {symbol}
-                  </p>
+                  <p className="mt-4 text-2xl font-bold">{symbol}</p>
 
                   <p className="mt-1 text-sm text-slate-500">
                     {timeframe} timeframe
@@ -737,9 +657,7 @@ export default function Dashboard() {
                     />
 
                     <div className="mt-3 flex justify-between text-sm">
-                      <span className="text-slate-500">
-                        Price movement
-                      </span>
+                      <span className="text-slate-500">Price movement</span>
 
                       <span
                         className={`font-semibold ${
@@ -763,22 +681,16 @@ export default function Dashboard() {
             {/* AI analyst introduction */}
             <section className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-[#0d1728] md:p-6">
               <div className="flex items-center gap-2">
-                <ShieldCheck
-                  size={20}
-                  className="text-blue-500"
-                />
+                <ShieldCheck size={20} className="text-blue-500" />
 
-                <h3 className="font-semibold">
-                  AI Forex Analyst
-                </h3>
+                <h3 className="font-semibold">AI Forex Analyst</h3>
               </div>
 
               <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
-                Combine technical indicators, market structure,
-                liquidity zones, breakout analysis and
-                multi-timeframe confirmation. AI insights are
-                presented for human review. No trades are
-                executed automatically.
+                Combine technical indicators, market structure, liquidity zones,
+                breakout analysis and multi-timeframe confirmation. AI insights
+                are presented for human review. No trades are executed
+                automatically.
               </p>
 
               <button
@@ -830,9 +742,7 @@ function NavItem({
       {icon}
       {label}
 
-      {active && (
-        <span className="ml-auto h-2 w-2 rounded-full bg-white" />
-      )}
+      {active && <span className="ml-auto h-2 w-2 rounded-full bg-white" />}
     </button>
   );
 }
@@ -872,20 +782,12 @@ function StatCard({
         {value}
       </p>
 
-      <p className="mt-1 text-xs text-slate-500">
-        {detail}
-      </p>
+      <p className="mt-1 text-xs text-slate-500">{detail}</p>
     </div>
   );
 }
 
-function PriceRow({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function PriceRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between text-sm">
       <span className="text-slate-500">{label}</span>

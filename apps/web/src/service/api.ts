@@ -286,4 +286,97 @@ export const analysisAPI = {
     ),
 };
 
+export interface AnalysisHistoryItem {
+  id: string;
+  symbol: string;
+  timeframe: string;
+  analyzed_at: string;
+  directional_bias: "bullish" | "bearish" | "neutral" | "uncertain";
+  confidence: "low" | "medium" | "high";
+  summary: string;
+  human_confirmation_required: boolean;
+}
+
+export interface AnalysisHistoryRecord extends AnalysisHistoryItem {
+  user_id: string;
+  market_analysis: Record<string, unknown>;
+  multi_timeframe_analysis: Record<string, unknown> | null;
+  ai_result: {
+    success: boolean;
+    provider?: string;
+    model?: string;
+    interpretation: {
+      market_bias: string;
+      confidence: string;
+      summary: string;
+      bullish_scenario: {
+        conditions: unknown[];
+        supporting_evidence: unknown[];
+        invalidation: unknown[];
+      };
+      bearish_scenario: {
+        conditions: unknown[];
+        supporting_evidence: unknown[];
+        invalidation: unknown[];
+      };
+      key_levels_and_zones: unknown[];
+      risk_factors: unknown[];
+      conflicting_evidence: unknown[];
+      analyst_recommendation: string;
+      human_confirmation_required: boolean;
+    };
+    execution_enabled: boolean;
+    human_confirmation_required: boolean;
+  };
+  execution_enabled: boolean;
+}
+
+export interface AnalysisHistoryListResponse {
+  success: boolean;
+  items: AnalysisHistoryItem[];
+  pagination: {
+    page: number;
+    limit: number;
+    total: number;
+    pages: number;
+  };
+}
+
+export interface AnalysisHistoryDetailResponse {
+  success: boolean;
+  record: AnalysisHistoryRecord;
+}
+
+export interface AnalysisHistoryFilters {
+  symbol?: string;
+  timeframe?: string;
+  bias?: string;
+  search?: string;
+  page?: number;
+  limit?: number;
+}
+
+export const analysisHistoryAPI = {
+  list: (filters: AnalysisHistoryFilters = {}) => {
+    const params = new URLSearchParams();
+
+    Object.entries(filters).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && value !== "") {
+        params.set(key, String(value));
+      }
+    });
+
+    const query = params.toString();
+
+    return request<AnalysisHistoryListResponse>(
+      `/analysis/history${query ? `?${query}` : ""}`
+    );
+  },
+
+  detail: (id: string) =>
+    request<AnalysisHistoryDetailResponse>(
+      `/analysis/history/${encodeURIComponent(id)}`
+    ),
+};
+
 export { ApiError };

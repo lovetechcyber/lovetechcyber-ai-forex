@@ -107,6 +107,33 @@ async def connect_to_mongodb() -> None:
             ],
             name="market_candle_latest",
         )
+        
+        await database.analysis_history.create_index(
+            [
+                ("user_id", ASCENDING),
+                ("analyzed_at", DESCENDING),
+            ],
+            name="analysis_history_user_date",
+        )
+
+        await database.analysis_history.create_index(
+            [
+                ("user_id", ASCENDING),
+                ("symbol", ASCENDING),
+                ("timeframe", ASCENDING),
+                ("analyzed_at", DESCENDING),
+            ],
+            name="analysis_history_user_symbol_timeframe",
+        )
+
+        await database.analysis_history.create_index(
+            [
+                ("user_id", ASCENDING),
+                ("directional_bias", ASCENDING),
+                ("analyzed_at", DESCENDING),
+            ],
+            name="analysis_history_user_bias",
+        )
 
         # 3. Publish the client only after all initialization succeeds.
         client = new_client

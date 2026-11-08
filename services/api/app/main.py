@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from app.routes import multi_timeframe
 from app.core.config import settings
+from app.routes import analysis_history
 from app.db.mongo import (
     close_mongodb_connection,
     connect_to_mongodb,
@@ -147,6 +148,7 @@ app.include_router(
 )
 
 app.include_router(multi_timeframe.router)
+app.include_router(analysis_history.router)
 app.include_router(analysis.router)
 app.include_router(
     auth_router,

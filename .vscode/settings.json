@@ -2,5 +2,8 @@
     "editor.defaultFormatter": "ms-python.autopep8",
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter"
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "rvest.vs-code-prettier-eslint"
     }
 }
