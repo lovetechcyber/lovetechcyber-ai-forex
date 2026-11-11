@@ -23,7 +23,6 @@ export default defineConfig({
         short_name: 'Lovetech Forex',
         description:
           'AI-powered forex market analysis, market structure and multi-timeframe intelligence.',
-
         theme_color: '#0b1220',
         background_color: '#0b1220',
         display: 'standalone',
@@ -49,6 +48,11 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
 
+        // Never treat API paths as frontend navigation.
+        navigateFallbackDenylist: [
+          /^\/api\//,
+        ],
+
         globPatterns: [
           '**/*.{js,css,html,ico,png,svg,woff2}',
         ],
@@ -59,13 +63,42 @@ export default defineConfig({
               url.pathname.startsWith('/api/'),
 
             handler: 'NetworkOnly',
+            method: 'GET',
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/api/'),
+
+            handler: 'NetworkOnly',
+            method: 'POST',
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/api/'),
+
+            handler: 'NetworkOnly',
+            method: 'PUT',
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/api/'),
+
+            handler: 'NetworkOnly',
+            method: 'PATCH',
+          },
+          {
+            urlPattern: ({ url }) =>
+              url.pathname.startsWith('/api/'),
+
+            handler: 'NetworkOnly',
+            method: 'DELETE',
           },
         ],
       },
 
+      // Keep the development service worker disabled.
       devOptions: {
-        enabled: true,
-        type: 'module',
+        enabled: false,
       },
     }),
   ],
